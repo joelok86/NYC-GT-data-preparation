@@ -81,8 +81,8 @@ gt_1_clean <- gt_1_clean %>% mutate(birth_month=
 
 str command gives us the class of the variable.
 unique command shows the distinct values in the column.
-The olsat scores were enetered in different formats. the highest possible score is 30.
-For all the values entred in the form of a fraction, the numerator is considered.
+The olsat scores were entered in different formats. the highest possible score is 30.
+For all the values entered in the form of a fraction, the numerator is considered.
 For all the values entered in the form of decimal number, it is converted to whole number, by
 taking 30 as the highest possible number.
 The values are then converted to numeric class using as.numeric from base R.
@@ -131,9 +131,9 @@ gt_values
 
 
 str and unique commands are used to identify the class and the distinct values in the nnat scores variable.
-The fractional values are converted to whole numbers, with the assumtion that the maximum possible score is 50.
+The fractional values are converted to whole numbers, with the assumption that the maximum possible score is 50.
 Once again, ggplot2 package is generate a scatter plot to view the outliers in the column.
-All the decimal snumebrs are converted to whole numbers.
+All the values are converted to whole numbers.
 
 ```{r,echo=FALSE}
 # Converting NNAT non-verbal scores
@@ -233,16 +233,16 @@ gt_1_clean1 <- gt_1_clean1 %>% select(-school_preferences)
 ```
 
 
-There are two unnamed columns in the dataset. The second column had only one values which seemed like a mis-entry,
-entered into the secodn column instead of the first column.
+There are two unnamed columns in the dataset. The second column had only one values which seemed like an error,
+entered into the second column instead of the first column.
 Once again, the goal is to stream line and group the values accurately.
 All the values are grouped into yes, no and missing. The values are related to the test preparation.
 The column had more than 10% of the missing data.
 The data is left as it is as this is not considered as one of the primary variables of interest.
 It should be noted that the rows with missing values for this variable, also had missing values for 
 other variables - enrollment and assigned school. This shows that the valeus are not missing by chance by
-clear lack of data collected for these subjects. The deeper analysis of the data collected and data sites si required to
-understand if data entry is missing from specifis data collection sites.
+clear lack of data collected for these subjects. The deeper analysis of the data collected and data sites is required to
+understand if data entry is missing from specifics data collection sites.
 
 ```{r}
 gt_1_clean1 <- gt_1_clean1 %>% mutate(x13= ifelse(!is.na(x14), x14, x13)) %>% select(-x14)
@@ -270,10 +270,10 @@ gt_1_clean1 <- gt_1_clean1 %>%
     TRUE ~ "Yes" 
   )) %>% select(-will_you_enroll_there)
 
-# Create a contingency table
+# Creating a contingency table
 missing_table <- table(gt_1_clean1$enrollment, is.na(gt_1_clean1$school_assigned))
 
-# Perform a Chi-Square Test
+# Performing a Chi-Square Test
 chisq_test <- chisq.test(missing_table)
 print(chisq_test)
 
@@ -281,7 +281,7 @@ print(chisq_test)
 
 missing_table <- table(gt_1_clean1$testprep, is.na(gt_1_clean1$enrollment))
 
-# Perform a Chi-Square Test
+# Performing a Chi-Square Test
 chisq_test <- chisq.test(missing_table)
 print(chisq_test)
 
@@ -379,7 +379,7 @@ gt_2_clean <- gt_2_clean %>% mutate(olsat_verbal_percentile=
 
 ```{r}
 
-#Standardzing nnat scores
+#Standardizing nnat scores
 
 str(gt_2_clean$nnat_non_verbal_raw_score)
 
@@ -474,6 +474,11 @@ combined_gt <- bind_rows(gt_1_clean1, gt_2_clean1)
 write.csv(combined_gt, "combined_gt.csv", row.names = FALSE)
 
 ```
+
+
+
+
+
 
 
 
