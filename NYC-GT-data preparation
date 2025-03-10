@@ -1,0 +1,480 @@
+---
+title: "GT datafiles - Cleaning & Standardization"
+author: "Jyothi"
+date: "2025-03-09"
+output: pdf_document
+---
+
+```{r,warning=FALSE, message=FALSE}
+#Loading the libraries
+library(openxlsx)
+library(dplyr)
+library(janitor)
+library(tidyverse)
+library(ggplot2)
+library(stringr)
+
+#Reading both the datasets
+gt_1 <- read.xlsx("Copy of G&T Results 2018-19 Responses - Sheet1.xlsx")
+gt_2 <- read.xlsx("Copy of G&T Results 2017-18 (Responses) - Form Responses 1 (1).xlsx")
+```
+
+clean_names command helps in converting all column names into lower case, with underscores between words.
+It is part of the Janitor package. glimpse is an excellent command to view the column names and the first few values.
+
+```{r}
+#Viewing the gt_1 dataset and cleaning the column names
+gt_1_clean <- clean_names(gt_1)
+
+glimpse(gt_1_clean)
+```
+
+
+as.date and as.numeric are in base R. as.numeric helps in converting the class to numeric form.
+as.date helps in changing the variable to the date format, using the excel date origin at 1899-12-30.
+head command  shows the first ten rows of the data.
+select command is used to remove the timestamp variable from the dataset.
+
+```{r}
+#changing "timestamp" variable into data format
+gt_1_clean <- gt_1_clean %>%
+   mutate(date = as.Date(as.numeric(timestamp), origin = "1899-12-30"))
+
+head(gt_1_clean$date)
+
+gt_1_clean <- gt_1_clean %>% select(-timestamp)
+```
+
+
+Using case_when from dplyr package, the values are standardized for grade variable.
+The dataset had inconsistent entries in terms of format.
+The variable is of character class.
+
+```{r}
+#Standardizing grade levels
+gt_1_clean <- gt_1_clean %>% mutate(entering_grade_level= 
+                                      case_when(
+                                        entering_grade_level == "1" ~ "first", 
+                                        entering_grade_level == "2" ~ "second",
+                                        entering_grade_level %in%  c("K","k") ~ "kindergarten",
+                                        TRUE ~ entering_grade_level))
+```
+
+Using case_when from dplyr package, birth month is standardized. This column had inconsistent values with numeric and character formats.
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+# Standardizing birth months
+unique(gt_1_clean$birth_month)                                        
+```
+
+```{r}
+gt_1_clean <- gt_1_clean %>% mutate(birth_month=
+                                      case_when(
+                                        birth_month %in% c("Febrauary", "Feb", "2") ~ "February",
+                                        birth_month == "september" ~ "September",
+                                        birth_month == "11" ~ "November",
+                                        birth_month == "12" ~ "December",
+                                        TRUE ~ birth_month))
+
+```
+
+
+str command gives us the class of the variable.
+unique command shows the distinct values in the column.
+The olsat scores were enetered in different formats. the highest possible score is 30.
+For all the values entred in the form of a fraction, the numerator is considered.
+For all the values entered in the form of decimal number, it is converted to whole number, by
+taking 30 as the highest possible number.
+The values are then converted to numeric class using as.numeric from base R.
+
+In case of olsat percentile, geom_point from ggplot2 package is used to plot the values.
+seq_along helps in generating a standard numeric values on y axis.
+The plot helps in identifying any outliers in the column.
+Values with decimal points are converted to whole numbers by multiplying with 100.
+This decision is based on the trends observed in other values of the column.
+
+```{r,echo=FALSE}
+# Cleaning and converting OLSAT verbal scores & percentiles
+str(gt_1_clean$olsat_verbal_score)                                      
+
+unique(gt_1_clean$olsat_verbal_score)   
+```
+
+```{r}
+gt_1_clean <- gt_1_clean %>% mutate(olsat_verbal_score=
+                                      case_when(
+                                        olsat_verbal_score =="25/30" ~ "25",
+                                       olsat_verbal_score == "0.83" ~ "25",
+                                        olsat_verbal_score == " " ~ "NA",
+                                        TRUE ~ olsat_verbal_score))
+
+gt_1_clean <- gt_1_clean %>% mutate(olsat_verbal_score = as.numeric(olsat_verbal_score))
+
+str(gt_1_clean$olsat_verbal_percentile)
+
+summary(gt_1_clean$olsat_verbal_percentile)
+
+ggplot(data=gt_1_clean, aes(x= seq_along(olsat_verbal_percentile), y= olsat_verbal_percentile))+
+  geom_point(color="blue")+
+  theme_minimal()
+
+gt_values <- gt_1_clean %>% filter(olsat_verbal_percentile < 10)
+gt_values
+
+gt_1_clean <- gt_1_clean %>% mutate(olsat_verbal_percentile=
+                                      case_when(olsat_verbal_percentile==0.91 ~ 91,
+                                                TRUE ~ olsat_verbal_percentile))
+
+gt_values <- gt_1_clean %>% filter(olsat_verbal_percentile < 10)
+gt_values
+```
+
+
+str and unique commands are used to identify the class and the distinct values in the nnat scores variable.
+The fractional values are converted to whole numbers, with the assumtion that the maximum possible score is 50.
+Once again, ggplot2 package is generate a scatter plot to view the outliers in the column.
+All the decimal snumebrs are converted to whole numbers.
+
+```{r,echo=FALSE}
+# Converting NNAT non-verbal scores
+str(gt_1_clean$nnat_non_verbal_raw_score)
+
+unique(gt_1_clean$nnat_non_verbal_raw_score)
+```
+
+```{r}
+gt_1_clean <- gt_1_clean %>% mutate(nnat_non_verbal_raw_score = as.numeric( 
+                                      case_when(nnat_non_verbal_raw_score == "40/50" ~ "40",
+                                                TRUE ~ nnat_non_verbal_raw_score)))
+
+
+str(gt_1_clean$nnat_non_verbal_percentile)
+
+ggplot(data = gt_1_clean, aes(x=seq_along(nnat_non_verbal_percentile), y= nnat_non_verbal_percentile))+
+  geom_point(color = "blue")+
+  theme_minimal()
+
+gt_values <- gt_1_clean %>% filter(nnat_non_verbal_percentile < 10)
+View(gt_values)
+
+gt_1_clean <- gt_1_clean %>% mutate(nnat_non_verbal_percentile= ifelse(nnat_non_verbal_percentile < 10,
+                                                                       nnat_non_verbal_percentile*100,
+                                                                       nnat_non_verbal_percentile))
+```
+
+str and summary commands are used to verify the class and trends of the overall score variable.
+
+```{r,echo=FALSE}
+#Checking the format of overall_score
+
+str(gt_1_clean$overall_score)
+
+summary(gt_1_clean$overall_score)
+```
+
+
+str and unique are used to identify the class and the distinct values for the school preferences.
+The columns had inconsistent values . The goal was to streamline the values. I converted all the values that imply as not 
+having any preference or unsure into - none.
+I then split the column into two - first preferred school, and other preferred schools.
+This categorization will help in identifying clearly the preferred school and alternatives option.
+It also helps to clearly group those subjects with no preference.
+I used ifelse and str functions to acheive these tasks.
+Head funstion helps in viewing the first few rows for the specific variable.
+The parent column is then deleted.
+
+```{r,results='hide'}
+# Standardizing school preferences
+
+str(gt_1_clean$school_preferences)
+
+unique(gt_1_clean$school_preferences)
+```
+
+```{r,results='hide'}
+
+gt_1_clean <- gt_1_clean %>%
+  mutate(school_preferences = ifelse(
+    school_preferences %in% c(NA, ":-(", "Not sure", "No idea! ", "Likely none","None", "N/A stay district g&t ", "Already in ps 102m ", "Keeping her in PS42M. ", ":( maybe next year"), 
+    "none", 
+    school_preferences
+  ))
+
+```
+
+```{r,results='hide'}
+# Checking unique values after replacement
+unique(gt_1_clean$school_preferences)
+```
+
+```{r}
+gt_1_clean1 <- gt_1_clean %>%
+  mutate(
+    school_preferences = str_trim(school_preferences), 
+    school_preferences = str_replace_all(school_preferences, "\\?", ""), 
+    school_preferences = str_replace_all(school_preferences, "/", ", "), 
+    first_choice = word(school_preferences, 1, sep = fixed(",")),
+    remaining_choices = str_remove(school_preferences, paste0("^", first_choice, ",?\\s*")) 
+  )
+
+# Viewing updated results
+head(gt_1_clean1[, c("school_preferences", "first_choice", "remaining_choices")])
+
+
+gt_1_clean1 <- gt_1_clean1 %>% mutate(remaining_choices= 
+                                        ifelse(remaining_choices == first_choice,"none",
+                                               ifelse(remaining_choices == "", "none",
+                                                      remaining_choices)))
+
+
+head(gt_1_clean1[, c("school_preferences", "first_choice", "remaining_choices")])  
+
+gt_1_clean1 <- gt_1_clean1 %>% select(-school_preferences)
+```
+
+
+There are two unnamed columns in the dataset. The second column had only one values which seemed like a mis-entry,
+entered into the secodn column instead of the first column.
+Once again, the goal is to stream line and group the values accurately.
+All the values are grouped into yes, no and missing. The values are related to the test preparation.
+The column had more than 10% of the missing data.
+The data is left as it is as this is not considered as one of the primary variables of interest.
+It should be noted that the rows with missing values for this variable, also had missing values for 
+other variables - enrollment and assigned school. This shows that the valeus are not missing by chance by
+clear lack of data collected for these subjects. The deeper analysis of the data collected and data sites si required to
+understand if data entry is missing from specifis data collection sites.
+
+```{r}
+gt_1_clean1 <- gt_1_clean1 %>% mutate(x13= ifelse(!is.na(x14), x14, x13)) %>% select(-x14)
+
+
+gt_1_clean1 <- gt_1_clean1 %>%
+  mutate(
+    testprep = case_when(
+      str_detect(x13, regex("\\b(Yes|yes|Y|y)\\b", ignore_case = TRUE)) ~ "Yes",
+      str_detect(x13, regex("\\b(No|no|N|n)\\b", ignore_case = TRUE)) ~ "No",
+      str_detect(x13, regex("\\b(home|Home|testing|Testingmom.com|Minimally|mom)\\b", ignore_case = TRUE)) ~ "Yes",
+      str_detect(x13, regex("\\b(Missed)\\b", ignore_case = TRUE)) ~ "No",
+      TRUE ~ x13
+    )
+  ) %>% select(-x13)
+```
+
+
+```{r,warning =FALSE, message=FALSE}
+gt_1_clean1 <- gt_1_clean1 %>% 
+  mutate(enrollment = case_when(
+    will_you_enroll_there %in% c("no", "No", "NO") ~ "No",
+    is.na(will_you_enroll_there) ~ "",
+    will_you_enroll_there == "Not sure" ~ "Unsure",
+    TRUE ~ "Yes" 
+  )) %>% select(-will_you_enroll_there)
+
+# Create a contingency table
+missing_table <- table(gt_1_clean1$enrollment, is.na(gt_1_clean1$school_assigned))
+
+# Perform a Chi-Square Test
+chisq_test <- chisq.test(missing_table)
+print(chisq_test)
+
+
+
+missing_table <- table(gt_1_clean1$testprep, is.na(gt_1_clean1$enrollment))
+
+# Perform a Chi-Square Test
+chisq_test <- chisq.test(missing_table)
+print(chisq_test)
+
+glimpse(gt_1_clean1)
+```
+
+
+
+
+
+Similar strategies were used in cleanign and standardizing the variabel sin the gt_2 dataset, before combining both the 
+datasets. The gt_2 dataset did not have the test preparation column. The rows from this dataset will not have any value for this variable.
+
+```{r}
+#Standardizing the column names for gt_2 dataset
+
+gt_2_clean <- clean_names(gt_2)
+
+glimpse(gt_2_clean)
+
+#Changing the timestamp variable to date format
+str(gt_2_clean$timestamp)
+gt_2_clean <- gt_2_clean %>%
+  mutate(date = as.Date(timestamp, origin = "1899-12-30")) %>% select(-timestamp)
+
+head(gt_2_clean$date)
+
+#Standardizing the grade levels
+gt_2_clean <- gt_2_clean %>% mutate(entering_grade_level= 
+                                      case_when(
+                                        entering_grade_level == "1" ~ "first", 
+                                        entering_grade_level == "2" ~ "second",
+                                        entering_grade_level %in%  c("K","k","kinder") ~ "kindergarten",
+                                        entering_grade_level == "3" ~ "third",
+                                        TRUE ~ entering_grade_level))
+
+
+```
+
+```{r}
+#Standardizing the birth month
+
+gt_2_clean <- gt_2_clean %>% mutate(birth_month=
+                                      case_when(
+                                        birth_month %in% c("Febrauary", "Feb", "2") ~ "February",
+                                        birth_month == "8" ~ "August",
+                                        birth_month == "11" ~ "November",
+                                        birth_month == "12" ~ "December",
+                                        TRUE ~ birth_month))
+```
+
+```{r}
+#Standardizing olsat scores and percentiles
+
+str(gt_2_clean$olsat_verbal_score)                                      
+  
+
+gt_2_clean <- gt_2_clean %>% mutate(olsat_verbal_score=
+                                      case_when(
+                                        olsat_verbal_score =="28/30" ~ "28",
+                                        olsat_verbal_score == "19/30" ~ "19",
+                                        olsat_verbal_score == "23/30" ~ "23",
+                                        olsat_verbal_score == "0.83" ~ "25",
+                                        olsat_verbal_score %in% c("", "**","---","-","Fill out later.") ~ NA,
+                                        TRUE ~ olsat_verbal_score))
+
+gt_2_clean <- gt_2_clean %>% mutate(olsat_verbal_score = as.numeric(olsat_verbal_score))
+
+summary(gt_2_clean$olsat_verbal_score)
+
+gt_2_clean <- gt_2_clean %>% mutate(olsat_verbal_score=
+                                      case_when(
+                                        olsat_verbal_score < 10 | olsat_verbal_score >30  ~ NA,
+                                        TRUE ~ olsat_verbal_score
+                                      ))
+
+
+str(gt_2_clean$olsat_verbal_percentile)
+
+summary(gt_2_clean$olsat_verbal_percentile)
+
+ggplot(data=gt_2_clean, aes(x= seq_along(olsat_verbal_percentile), y= olsat_verbal_percentile))+
+  geom_point(color="blue")+
+  theme_minimal()
+```
+```{r}
+gt_values <- gt_2_clean %>% filter(olsat_verbal_percentile < 10)
+gt_values
+
+
+gt_2_clean <- gt_2_clean %>% mutate(olsat_verbal_percentile=
+                                      case_when(olsat_verbal_percentile== "~70" ~ "70",
+                                                TRUE ~ olsat_verbal_percentile),olsat_verbal_percentile = as.numeric(olsat_verbal_percentile))
+```
+
+```{r}
+
+#Standardzing nnat scores
+
+str(gt_2_clean$nnat_non_verbal_raw_score)
+
+
+gt_2_clean <- gt_2_clean %>% mutate(nnat_non_verbal_raw_score = as.numeric( 
+  case_when(nnat_non_verbal_raw_score == "45/50" ~ "45",
+            nnat_non_verbal_raw_score == "39/48" ~ "39",
+            nnat_non_verbal_raw_score == "36/48" ~ "36",
+            nnat_non_verbal_raw_score == "41/48" ~ "41",
+            nnat_non_verbal_raw_score == "40/48" ~ "40",
+            nnat_non_verbal_raw_score %in% c("-","Fill out later.","**","---") ~ "",
+            nnat_non_verbal_raw_score >50 ~ "",
+            TRUE ~ nnat_non_verbal_raw_score)),nnat_non_verbal_raw_score= as.numeric(nnat_non_verbal_raw_score))
+
+
+str(gt_2_clean$nnat_non_verbal_percentile)
+
+ggplot(data = gt_2_clean, aes(x=seq_along(nnat_non_verbal_percentile), y= nnat_non_verbal_percentile))+
+  geom_point(color = "blue")+
+  theme_minimal()
+
+gt_values <- gt_2_clean %>% filter(nnat_non_verbal_percentile < 10)
+View(gt_values)
+
+gt_2_clean <- gt_2_clean %>% mutate(nnat_non_verbal_percentile= case_when(nnat_non_verbal_percentile < 1 ~ 99,
+                                                                       nnat_non_verbal_percentile == 9.00 ~ 90,
+TRUE ~ nnat_non_verbal_percentile))
+
+```
+
+```{r}
+
+#Checking the overall score values
+str(gt_2_clean$overall_score)
+
+summary(gt_2_clean$overall_score)
+```
+
+```{r}
+#Standardizing school preferences
+
+str(gt_2_clean$school_preferences)
+
+
+
+gt_2_clean <- gt_2_clean %>%
+  mutate(school_preferences = ifelse(
+    school_preferences %in% c(NA,"na", "All CW", ":-(","Likely staying in zoned schools; D15 G&T options are limited.",
+                              "Not sure", "No idea! ", "Likely none","None", "N/A stay district g&t ",
+                              "Brooklyn School of Inquiry" , "Any citywide or district 3 school", "Any city-wide"), 
+    "none", 
+    school_preferences
+  ))
+
+# Check unique values after replacement
+
+
+gt_2_clean1 <- gt_2_clean %>%
+  mutate(
+    school_preferences = str_replace_all(str_trim(school_preferences), "/", ", "),
+    first_choice = word(school_preferences, 1, sep = fixed(",")), 
+    remaining_choices = str_remove(school_preferences, paste0("\\b", fixed(first_choice), "\\b,?\\s*")),
+    remaining_choices = trimws(mapply(gsub, first_choice, "", remaining_choices, MoreArgs = list(fixed = TRUE))),
+    remaining_choices = ifelse(remaining_choices %in% c("", first_choice), "none", remaining_choices),
+    remaining_choices = str_remove(remaining_choices, "^,")
+  )
+
+gt_2_clean1 <- gt_2_clean1 %>% select(-school_preferences)
+```
+
+```{r,warning=FALSE}
+
+#Standardizing enrollment options
+
+gt_2_clean1 <- gt_2_clean1 %>% 
+  mutate(enrollment = case_when(
+    will_you_enroll_there %in% c("no", "No", "NO") ~ "No",
+    is.na(will_you_enroll_there) ~ "",
+    will_you_enroll_there == "Maybe" ~ "Unsure",
+    TRUE ~ "Yes" 
+  )) %>% select(-will_you_enroll_there)
+
+
+glimpse(gt_2_clean1)
+
+#Changing district variable to numeric class
+gt_2_clean1 <- gt_2_clean1 %>% mutate(district=as.numeric(district))
+
+#Combining the gt_1 and gt_2 datasets
+
+combined_gt <- bind_rows(gt_1_clean1, gt_2_clean1)
+write.csv(combined_gt, "combined_gt.csv", row.names = FALSE)
+
+```
+
+
+
+
