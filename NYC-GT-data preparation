@@ -1,3 +1,4 @@
+
 ---
 title: "GT datafiles - Cleaning & Standardization"
 author: "Jyothi"
@@ -240,9 +241,8 @@ All the values are grouped into yes, no and missing. The values are related to t
 The column had more than 10% of the missing data.
 The data is left as it is as this is not considered as one of the primary variables of interest.
 It should be noted that the rows with missing values for this variable, also had missing values for 
-other variables - enrollment and assigned school. This shows that the valeus are not missing by chance by
-clear lack of data collected for these subjects. The deeper analysis of the data collected and data sites is required to
-understand if data entry is missing from specifics data collection sites.
+other variables - enrollment and assigned school. This shows that the values are not missing by chance by
+clear lack of data collected for these subjects. The chi-square test shows a significant association between the missing values in the "school assigned" variable and the enrollment variable.The deeper analysis of the data collected and data sites is required to understand if data entry is missing from specifics data collection sites.
 
 ```{r}
 gt_1_clean1 <- gt_1_clean1 %>% mutate(x13= ifelse(!is.na(x14), x14, x13)) %>% select(-x14)
